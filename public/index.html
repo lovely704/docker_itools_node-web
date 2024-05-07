@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>水电计算器</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/decimal.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    #app {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap; /* Allow wrapping */
+      align-items: center; /* Vertical center alignment */
+      margin-top: 10px;
+    }
+    .label {
+      width: 100px; /* Fixed width for label */
+      min-width: 60px; /* Ensure it does not shrink below 60px */
+      font-weight: 700;
+      
+    }
+    input {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      outline: none;
+      -webkit-appearance: none;
+      flex: 1; /* Takes up remaining space */
+    }
+
+    .result{
+      padding-left: 2px;
+      width: 80px;
+    }
+
+    span {
+      color: red;
+      display: block; /* Makes the error message take up its own line */
+      margin-top: 5px;
+      width: 100%; /* Full width to separate from inputs */
+    }
+
+    #app span.label-unitPrice{
+      /* width: 20%; */
+      padding: 5px 0;
+      border-bottom: 2px solid rgb(234, 234, 234);
+      /* border-radius: 5px; */
+      /* box-shadow: 1px 2px 1px rgba(0,0,0,0.1); */
+    }
+
+    h3 {
+      text-align: center;
+      color: #333;
+    }
+    @media (max-width: 600px) {
+      .row {
+        /* flex-direction: column; */
+        align-items: stretch; /* Align items in full width */
+      }
+      .label {
+        width: 100%; /* Full width labels in mobile view */
+        text-align: left; /* Left align text */
+        margin-bottom: 5px; /* Space between label and input */
+      }
+      input{
+        width: 100%; /* Makes the inputs and buttons stretch to full width */
+        margin-right: 0;
+      }
+      .label-unitPrice{
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h3>{{ message }}</h3>
+    <hr />
+    <div class="row">
+      <div class="label">月度用电量：</div>
+      <input type="number" v-model.number="energyMonthCount" placeholder="输入本月电表计数" min="0">
+      &nbsp-&nbsp
+      <input type="number" v-model.number="energyLastMonthCount" placeholder="输入上月电表计数" min="0">
+      &nbsp= <div class="result">{{ subEnergy }}度</div>
+    </div>
+
+    <span v-if="energyError && energyMonthCount !== '' && energyLastMonthCount !== ''"><strong>{{ errorMessage }}</strong></span>
+
+    <div class="row">
+      <div class="label">月度用水量：</div>
+      <input type="number" v-model.number="waterMonthCount" placeholder="输入本月水表计数" min="0">
+      &nbsp-&nbsp
+      <input type="number" v-model.number="waterLastMonthCount" placeholder="输入上月水表计数" min="0">
+      &nbsp= <div class="result">{{ subWater }}吨</div>
+    </div>
+
+    <span v-if="waterError && waterMonthCount !== '' && waterLastMonthCount !== ''"><strong>{{ errorMessage }}</strong></span>
+
+    <div class="row">
+      <div class="label">合计：</div>
+      {{ subEnergy }} * {{ energyUnitPrice }} + {{ subWater }} * {{ waterUnitPrice }} = {{ totalPrice }}元
+    </div>
+    <span class="label-unitPrice">电费单价：{{ energyUnitPrice }}元</span>
+    <span class="label-unitPrice">水费单价：{{ waterUnitPrice }}元</span>
+  </div>
+  
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data: {
+        message: '水电计算器',
+        errorMessage: '请确保输入的是正数且上月的读数不能超过或等于本月的读数！',
+        energyUnitPrice:'0.64',
+        waterUnitPrice:'3.2',
+        energyMonthCount: '',
+        energyLastMonthCount: '',
+        waterMonthCount: '',
+        waterLastMonthCount: '',
+        energyError: false,
+        waterError: false
+      },
+      computed: {
+        subEnergy() {
+          if (this.energyMonthCount === '' || this.energyLastMonthCount === '') {
+            this.energyError = false;
+            return '';
+          }
+          if (this.isValidNumber(this.energyMonthCount) && this.isValidNumber(this.energyLastMonthCount)) {
+            if (new Decimal(this.energyMonthCount).greaterThan(this.energyLastMonthCount)) {
+              this.energyError = false;
+              return new Decimal(this.energyMonthCount).minus(this.energyLastMonthCount).toString();
+            } else {
+              this.energyError = true;
+              return '';
+            }
+          } else {
+            this.energyError = true;
+            return '';
+          }
+        },
+        
+        subWater() {
+          if (this.waterMonthCount === '' || this.waterLastMonthCount === '') {
+            this.waterError = false;
+            return '';
+          }
+          if (this.isValidNumber(this.waterMonthCount) && this.isValidNumber(this.waterLastMonthCount)) {
+            if (new Decimal(this.waterMonthCount).greaterThan(this.waterLastMonthCount)) {
+              this.waterError = false;
+              return new Decimal(this.waterMonthCount).minus(this.waterLastMonthCount).toString();
+            } else {
+              this.waterError = true;
+              return '';
+            }
+          } else {
+            this.waterError = true;
+            return '';
+          }
+        },
+
+        totalPrice() {
+          if (this.isValidNumber(this.subEnergy) && this.isValidNumber(this.subWater)) {
+            return (new Decimal(this.subEnergy).times(this.energyUnitPrice).plus(new Decimal(this.subWater).times(this.waterUnitPrice))).toString();
+          }
+          return '';
+}
+
+
+      },
+      methods: {
+        isValidNumber(value) {
+          return value !== '' && new Decimal(value).greaterThanOrEqualTo(0).toString();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
